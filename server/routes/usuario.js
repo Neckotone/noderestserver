@@ -5,7 +5,31 @@ const bcrypt = require('bcrypt');
 const _ = require('underscore'); //para seleccionar claves de objetos
 
 app.get('/usuario', (req, res) => {
-    res.json('get usuario');
+    let desde = req.query.desde || 0
+    desde = Number(desde)
+    let limite = req.query.limite || 5
+    limite = Number(limite)
+    Usuario.find({estado:true},'nombre email role estado google img')  //busqueda y select de campos
+        .skip(desde)
+        .limit(limite)
+        .exec((err, usuarios) => {
+            if (err) {
+                return res.status(400).json({
+                    ok: false,
+                    err
+                })
+            }
+            
+            Usuario.count({estado:true}, (err, conteo)=>{
+                res.json({
+                    ok: true,
+                    usuarios,
+                    conteo:conteo
+                });
+            })
+                
+            
+        })
 })
 
 app.post('/usuario', (req, res) => {
@@ -17,48 +41,73 @@ app.post('/usuario', (req, res) => {
         role: persona.role
     })
 
-    usuario.save((err, usuarioDB)=>{
-        if(err){
-           return res.status(400).json({
-                ok:false,
+    usuario.save((err, usuarioDB) => {
+        if (err) {
+            return res.status(400).json({
+                ok: false,
                 err
             })
         }
-        
+
         //usuarioDB.password = null
         res.json({
-            ok:true,
-            usuario:usuarioDB
+            ok: true,
+            usuario: usuarioDB
         })
     })
 })
 
 app.put('/usuario/:id', (req, res) => {
     let id = req.params.id;
-    let body = _.pick(req.body,['nombre','email','img','role','estado']);
-    
+    let body = _.pick(req.body, ['nombre', 'email', 'img', 'role', 'estado']);
+
 
 
     //retornar usuario actualizado pasar 3er argumento new:true
     //para correr validaciones colocar run validators true
-    Usuario.findByIdAndUpdate(id, body,{new:true, runValidators:true}, (err, usuarioDB) =>{
-        if(err){
+    Usuario.findByIdAndUpdate(id, body, { new: true, runValidators: true }, (err, usuarioDB) => {
+        if (err) {
             return res.status(400).json({
-                 ok:false,
-                 err
-             })
-         }
-         
+                ok: false,
+                err
+            })
+        }
+
         res.json({
-            ok:true,
-            usuario:usuarioDB
+            ok: true,
+            usuario: usuarioDB
         });
     })
 
 })
 
-app.delete('/usuario', (req, res) => {
-    res.json('delete usuario');
+app.delete('/usuario/:id', (req, res) => {
+    let id = req.params.id;
+    let cambiaEstado = {
+        estado:false
+    }
+    Usuario.findByIdAndUpdate(id,cambiaEstado,{new:true} ,(err, usuarioDesactivado)=>{
+        if(err){
+            return res.status(400).json({
+                ok:false,
+                err
+            });
+        };
+
+        if(!usuarioDesactivado){
+            return res.status(400).json({
+                ok:false,
+                err:{
+                    message: 'No se pudo desactivar el usuario'
+                }
+            });
+        };
+
+        res.json({
+            ok: true,
+            usuario: usuarioDesactivado
+        });
+    });
 })
 
 module.exports = app
